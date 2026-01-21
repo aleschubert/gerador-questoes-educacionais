@@ -44,37 +44,29 @@ def extrair_texto_pptx(file):
                 texto += shape.text + " "
     return limpar_texto(texto)
 
-# --- Função para gerar questões com alternativas plausíveis ---
+# --- Função para gerar questões com alternativas inventadas ---
 def gerar_questao(texto_base):
     frases = [f.strip() for f in texto_base.split('.') if len(f.strip()) > 40]
     if not frases:
         frases = ["Texto insuficiente para gerar questão."]
     
     contexto = random.choice(frases)
-    palavras = contexto.split()
     
-    # Criar enunciado
+    # Enunciado baseado em palavras do contexto
+    palavras = contexto.split()
     chave = " ".join(random.sample(palavras, min(3, len(palavras)))) if len(palavras) > 5 else "interpretação do texto"
     enunciado = f"Com base no texto acima, assinale a alternativa que melhor se refere à {chave}."
 
     # Alternativa correta
     correta = contexto
 
-    # Alternativas incorretas plausíveis
-    incorretas = []
-    outras_frases = [f for f in frases if f != contexto]
-    random.shuffle(outras_frases)
-    for f in outras_frases[:2]:
-        # Substituir palavras-chave por sinônimos ou trocar termos
-        palavras_alt = f.split()
-        if len(palavras_alt) > 2:
-            idx = random.randint(0, len(palavras_alt)-1)
-            palavras_alt[idx] = "???"
-            f = " ".join(palavras_alt)
-        incorretas.append(f)
-    while len(incorretas) < 4:
-        incorretas.append("Informação incorreta relacionada ao texto.")
-
+    # Alternativas incorretas totalmente inventadas
+    incorretas = [
+        "Informação incorreta sobre o assunto.",
+        "Esta alternativa não corresponde ao texto.",
+        "Fato não relacionado ao conteúdo apresentado.",
+        "Afirmação falsa para confundir o leitor."
+    ]
     alternativas = [correta] + incorretas
     random.shuffle(alternativas)
 
@@ -120,7 +112,7 @@ def gerar_pdf(questoes):
     return buffer
 
 # --- STREAMLIT INTERFACE ---
-st.title("Gerador de Questões – Versão Gratuita Aprimorada")
+st.title("Gerador de Questões – Versão Gratuita com Alternativas Inventadas")
 st.write("Cole o texto ou envie um arquivo PDF, Word ou PowerPoint para gerar questões automaticamente.")
 
 # Input de texto
