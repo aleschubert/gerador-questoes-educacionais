@@ -7,14 +7,15 @@ import PyPDF2
 from docx import Document as DocxDocument
 from pptx import Presentation
 import re
+import base64
 
 # --- Funções utilitárias ---
 def limpar_texto(texto):
     """Remove caracteres inválidos e espaços extras, mantendo frases completas."""
     if texto is None:
         return ""
-    texto = re.sub(r'\s+', ' ', texto)  # substitui múltiplos espaços por 1
-    texto = re.sub(r'[^\x00-\x7F]+','', texto)  # remove caracteres não ASCII
+    texto = re.sub(r'\s+', ' ', texto)
+    texto = re.sub(r'[^\x00-\x7F]+','', texto)
     return texto.strip()
 
 def extrair_texto_pdf(file):
@@ -43,34 +44,37 @@ def extrair_texto_pptx(file):
                 texto += shape.text + " "
     return limpar_texto(texto)
 
-# --- Função para gerar questões coerentes ---
+# --- Função para gerar questões com alternativas plausíveis ---
 def gerar_questao(texto_base):
-    # Dividir em frases grandes (min 40 caracteres)
     frases = [f.strip() for f in texto_base.split('.') if len(f.strip()) > 40]
     if not frases:
         frases = ["Texto insuficiente para gerar questão."]
     
     contexto = random.choice(frases)
-
-    # Enunciado baseado em trecho do contexto
     palavras = contexto.split()
-    if len(palavras) > 5:
-        chave = " ".join(random.sample(palavras, min(3, len(palavras))))
-    else:
-        chave = "interpretação do texto"
+    
+    # Criar enunciado
+    chave = " ".join(random.sample(palavras, min(3, len(palavras)))) if len(palavras) > 5 else "interpretação do texto"
     enunciado = f"Com base no texto acima, assinale a alternativa que melhor se refere à {chave}."
 
-    # Alternativas
+    # Alternativa correta
     correta = contexto
+
+    # Alternativas incorretas plausíveis
     incorretas = []
-    # pegar outras frases para alternativas incorretas
     outras_frases = [f for f in frases if f != contexto]
     random.shuffle(outras_frases)
-    for f in outras_frases[:3]:
+    for f in outras_frases[:2]:
+        # Substituir palavras-chave por sinônimos ou trocar termos
+        palavras_alt = f.split()
+        if len(palavras_alt) > 2:
+            idx = random.randint(0, len(palavras_alt)-1)
+            palavras_alt[idx] = "???"
+            f = " ".join(palavras_alt)
         incorretas.append(f)
     while len(incorretas) < 4:
         incorretas.append("Informação incorreta relacionada ao texto.")
-    
+
     alternativas = [correta] + incorretas
     random.shuffle(alternativas)
 
@@ -116,7 +120,7 @@ def gerar_pdf(questoes):
     return buffer
 
 # --- STREAMLIT INTERFACE ---
-st.title("Gerador de Questões – Versão Gratuita Limpa")
+st.title("Gerador de Questões – Versão Gratuita Aprimorada")
 st.write("Cole o texto ou envie um arquivo PDF, Word ou PowerPoint para gerar questões automaticamente.")
 
 # Input de texto
