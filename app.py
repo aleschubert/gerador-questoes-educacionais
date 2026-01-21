@@ -65,31 +65,44 @@ def separar_sentencas(texto):
     partes = re.split(r'(?<=[.!?])\s+', texto)
     return [p.strip() for p in partes if len(p.strip()) >= 25]
 
-# --- Gerar alternativas “pegadinha” ---
-def gerar_alternativas_pegadinha(sentenca):
+# --- Gerar alternativas A–E plausíveis ---
+def gerar_alternativas(sentenca):
     correta = sentenca
     incorretas = []
 
-    # Alterações sutis: verbo ou termo-chave trocado
-    substituicoes = {"remove":"transporta","gás carbônico":"oxigênio","diástole":"sístole",
-                     "sístole":"diástole","contração":"relaxamento","tecidos":"órgãos"}
+    # Substituições sutis para gerar erros plausíveis
+    substituicoes = {
+        "venoso":"arterial",
+        "arterial":"venoso",
+        "direito":"esquerdo",
+        "esquerdo":"direito",
+        "mistura":"não mistura",
+        "não mistura":"mistura",
+        "diástole":"sístole",
+        "sístole":"diástole",
+        "contração":"relaxamento",
+        "relaxamento":"contração",
+        "tecidos":"órgãos"
+    }
+
     for k,v in substituicoes.items():
-        if k in sentenca.lower():
-            incorretas.append(sentenca.lower().replace(k,v).capitalize())
+        if k.lower() in sentenca.lower():
+            inc = re.sub(k, v, sentenca, flags=re.IGNORECASE)
+            if inc.lower() != correta.lower():
+                incorretas.append(inc)
 
-    # Omissão de partes importantes
-    palavras = sentenca.split()
-    if len(palavras) > 5:
-        omitida = " ".join(palavras[:-2])
-        incorretas.append(omitida)
-
-    # Alternativa relacionada genérica se precisar completar 4 incorretas
+    # Completar 4 alternativas incorretas plausíveis se faltar
     while len(incorretas) < 4:
-        incorretas.append("Informação relacionada, mas incorreta.")
+        incorretas.append("Afirmação incorreta relacionada ao tema.")
 
+    # Seleciona 4 incorretas aleatórias e embaralha com a correta
     alternativas = [correta] + random.sample(incorretas,4)
     random.shuffle(alternativas)
-    return alternativas
+
+    # Colocar letras A–E
+    letras = ["A","B","C","D","E"]
+    alternativas_com_letras = {letras[i]: alt for i,alt in enumerate(alternativas)}
+    return alternativas_com_letras
 
 # --- Gerar questão ---
 def gerar_questao(texto):
@@ -98,10 +111,11 @@ def gerar_questao(texto):
         contexto = "Texto insuficiente para gerar questão."
     else:
         contexto = random.choice(sentencas)
-    enunciado = f"Com base no trecho acima, assinale a alternativa correta sobre o que é descrito:"
-    alternativas = gerar_alternativas_pegadinha(contexto)
-    correta = contexto
-    return {"contexto": contexto,"enunciado": enunciado,"alternativas": alternativas,"correta": correta}
+    enunciado = "Com base no trecho acima, assinale a alternativa correta sobre o que é descrito:"
+    alternativas = gerar_alternativas(contexto)
+    # Encontrar letra correta
+    letra_correta = [l for l,alt in alternativas.items() if alt==contexto][0]
+    return {"contexto": contexto,"enunciado": enunciado,"alternativas": alternativas,"correta": letra_correta}
 
 # --- Exportadores ---
 def gerar_word(questoes):
@@ -111,8 +125,8 @@ def gerar_word(questoes):
         doc.add_paragraph(f"Questão {i}")
         doc.add_paragraph(q.get("contexto",""))
         doc.add_paragraph(q.get("enunciado",""))
-        for alt in q.get("alternativas",[]):
-            doc.add_paragraph(f"- {alt}")
+        for letra,alt in q.get("alternativas",{}).items():
+            doc.add_paragraph(f"{letra}) {alt}")
         doc.add_paragraph(f"Gabarito: {q.get('correta','')}")
         doc.add_paragraph("")
     buffer = BytesIO()
@@ -126,14 +140,12 @@ def gerar_pdf(questoes):
     pdf.add_page()
     pdf.set_font("Arial", size=12)
     for i,q in enumerate(questoes,1):
-        contexto = str(q.get("contexto",""))
-        enunciado = str(q.get("enunciado",""))
         pdf.multi_cell(0,8,f"Questão {i}")
-        pdf.multi_cell(0,8,contexto)
-        pdf.multi_cell(0,8,enunciado)
-        for alt in q.get("alternativas",[]):
-            pdf.multi_cell(0,8,f"- {str(alt)}")
-        pdf.multi_cell(0,8,f"Gabarito: {str(q.get('correta',''))}")
+        pdf.multi_cell(0,8,q.get("contexto",""))
+        pdf.multi_cell(0,8,q.get("enunciado",""))
+        for letra,alt in q.get("alternativas",{}).items():
+            pdf.multi_cell(0,8,f"{letra}) {alt}")
+        pdf.multi_cell(0,8,f"Gabarito: {q.get('correta','')}")
         pdf.ln(5)
     buffer = BytesIO()
     pdf.output(buffer)
@@ -141,9 +153,9 @@ def gerar_pdf(questoes):
     return buffer
 
 # --- Streamlit ---
-st.set_page_config(page_title="Gerador de Questões Pegadinha", layout="centered")
+st.set_page_config(page_title="Gerador de Questões Inteligentes", layout="centered")
 st.title("Gerador de Questões – Alternativas Inteligentes")
-st.write("Cole o texto ou envie PDF, Word ou PowerPoint. Alternativa correta vem do texto; incorretas são pegadinhas relacionadas.")
+st.write("Cole o texto ou envie PDF, Word ou PowerPoint. Alternativa correta vem do texto; incorretas são pegadinhas plausíveis.")
 
 texto = st.text_area("Cole o texto aqui:",height=200)
 uploaded_file = st.file_uploader("Ou envie um arquivo:", type=['pdf','docx','pptx'])
@@ -168,8 +180,8 @@ if st.button("🧠 Gerar questões"):
             st.subheader(f"Questão {i+1}")
             st.write(q["contexto"])
             st.markdown(f"**{q['enunciado']}**")
-            for alt in q["alternativas"]:
-                st.write(f"- {alt}")
+            for letra,alt in q["alternativas"].items():
+                st.write(f"{letra}) {alt}")
             st.success("✔️ Alternativa correta:")
             st.write(q["correta"])
             st.divider()
@@ -182,5 +194,3 @@ if st.button("🧠 Gerar questões"):
         buf_pdf = gerar_pdf(questoes)
         b64p = base64.b64encode(buf_pdf.read()).decode()
         st.markdown(f'<a href="data:application/octet-stream;base64,{b64p}" download="Prova.pdf">💾 Baixar PDF</a>', unsafe_allow_html=True)
-
-            
