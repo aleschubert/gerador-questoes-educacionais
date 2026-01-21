@@ -1,2 +1,5 @@
 streamlit
 python-docx
+fpdf
+python-pptx
+PyPDF2
