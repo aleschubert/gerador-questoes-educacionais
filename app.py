@@ -59,43 +59,19 @@ def separar_sentencas(texto):
     partes = re.split(r'(?<=[.!?])\s+', texto)
     return [p.strip() for p in partes if len(p.strip()) > 20]
 
-# --- Gerar alternativas inteligentes ---
-def gerar_alternativas(sentenca):
-    correta = sentenca
-    incorretas = []
-
-    # Dicionário de substituições plausíveis
-    substituicoes = {
-        "venoso":"arterial",
-        "arterial":"venoso",
-        "direito":"esquerdo",
-        "esquerdo":"direito",
-        "mistura":"não mistura",
-        "não mistura":"mistura",
-        "diástole":"sístole",
-        "sístole":"diástole",
-        "contração":"relaxamento",
-        "relaxamento":"contração",
-        "tecidos":"órgãos",
-        "capilares":"pequenos vasos",
-        "gás carbônico":"oxigênio"
-    }
-
-    for k,v in substituicoes.items():
-        if k.lower() in sentenca.lower():
-            inc = re.sub(k, v, sentenca, flags=re.IGNORECASE)
-            if inc.lower() != correta.lower():
-                incorretas.append(inc)
-
-    # Completar 4 alternativas incorretas plausíveis
-    while len(incorretas) < 4:
-        incorretas.append("Afirmação incorreta relacionada ao tema.")
-
+# --- Gerar alternativas genéricas ---
+def gerar_alternativas_gen(texto):
+    correta = texto
+    incorretas = [
+        "Afirmação incorreta relacionada ao tema.",
+        "Fato não relacionado ao conteúdo apresentado.",
+        "Esta alternativa não corresponde ao texto.",
+        "Informação incorreta sobre o assunto."
+    ]
     alternativas = [correta] + random.sample(incorretas, 4)
     random.shuffle(alternativas)
-
     letras = ["A","B","C","D","E"]
-    return {letras[i]: alt for i,alt in enumerate(alternativas)}
+    return {letras[i]: alt for i, alt in enumerate(alternativas)}
 
 # --- Gerar questão ---
 def gerar_questao(texto):
@@ -105,7 +81,7 @@ def gerar_questao(texto):
     else:
         contexto = random.choice(sentencas)
     enunciado = "Com base no trecho acima, assinale a alternativa correta sobre o que é descrito:"
-    alternativas = gerar_alternativas(contexto)
+    alternativas = gerar_alternativas_gen(contexto)
     letra_correta = [l for l,alt in alternativas.items() if alt == contexto][0]
     return {"contexto": contexto,"enunciado": enunciado,"alternativas": alternativas,"correta": letra_correta}
 
@@ -146,9 +122,9 @@ def gerar_pdf(questoes):
     return buffer
 
 # --- Streamlit ---
-st.set_page_config(page_title="Gerador de Questões Inteligentes", layout="centered")
-st.title("Gerador de Questões – Alternativas Inteligentes")
-st.write("Cole o texto ou envie PDF, Word ou PowerPoint. Alternativa correta vem do texto; incorretas são pegadinhas plausíveis.")
+st.set_page_config(page_title="Gerador de Questões Grátis", layout="centered")
+st.title("Gerador de Questões – Versão Gratuita")
+st.write("Cole o texto ou envie PDF, Word ou PowerPoint. Alternativa correta vem do texto; as incorretas são genéricas.")
 
 texto = st.text_area("Cole o texto aqui:", height=200)
 uploaded_file = st.file_uploader("Ou envie um arquivo:", type=['pdf','docx','pptx'])
