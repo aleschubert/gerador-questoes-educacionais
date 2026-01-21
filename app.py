@@ -7,6 +7,13 @@ from fpdf import FPDF
 import PyPDF2
 from docx import Document as DocxDocument
 from pptx import Presentation
+import re
+
+# Função para limpar caracteres inválidos
+def limpar_texto(texto):
+    if texto is None:
+        return ""
+    return re.sub(r'[^\x00-\x7F]+',' ', texto)
 
 # Função para extrair texto de PDF
 def extrair_texto_pdf(file):
@@ -34,11 +41,12 @@ def extrair_texto_pptx(file):
                 texto += shape.text + "\n"
     return texto
 
-# Função para gerar questão ENEM
+# Função para gerar questão ENEM única
 def gerar_questao_enem(texto_base):
-    if len(texto_base.strip()) < 50:
-        texto_base += " (adicionando texto de exemplo para preencher contexto.)"
-    contexto = f"Considere o texto a seguir:\n\n{texto_base[:300]}..."
+    frases = [f.strip() for f in texto_base.split('.') if len(f.strip())>10]
+    if len(frases) < 3:
+        frases += ["Texto complementar para gerar questão."]
+    contexto = " ".join(random.sample(frases, min(3, len(frases))))
     enunciado = "A partir das informações apresentadas no texto, assinale a alternativa que melhor interpreta a situação apresentada."
     alternativas = [
         "A alternativa correta está associada à interpretação contextual do texto.",
@@ -50,10 +58,10 @@ def gerar_questao_enem(texto_base):
     correta = alternativas[-1]
     random.shuffle(alternativas)
     return {
-        "contexto": contexto,
-        "enunciado": enunciado,
-        "alternativas": alternativas,
-        "correta": correta
+        "contexto": limpar_texto(contexto),
+        "enunciado": limpar_texto(enunciado),
+        "alternativas": [limpar_texto(a) for a in alternativas],
+        "correta": limpar_texto(correta)
     }
 
 # Função para gerar Word
@@ -61,11 +69,11 @@ def gerar_word(questoes):
     doc = Document()
     for i, q in enumerate(questoes, 1):
         doc.add_paragraph(f"Questão {i}")
-        doc.add_paragraph(q["contexto"])
-        doc.add_paragraph(q["enunciado"])
-        for alt in q["alternativas"]:
-            doc.add_paragraph(f"- {alt}")
-        doc.add_paragraph(f"Resposta correta: {q['correta']}")
+        doc.add_paragraph(str(q.get("contexto","")))
+        doc.add_paragraph(str(q.get("enunciado","")))
+        for alt in q.get("alternativas", []):
+            doc.add_paragraph(f"- {str(alt)}")
+        doc.add_paragraph(f"Resposta correta: {str(q.get('correta',''))}")
         doc.add_paragraph("\n")
     buffer = BytesIO()
     doc.save(buffer)
@@ -80,11 +88,11 @@ def gerar_pdf(questoes):
     pdf.set_font("Arial", size=12)
     for i, q in enumerate(questoes, 1):
         pdf.multi_cell(0, 8, f"Questão {i}")
-        pdf.multi_cell(0, 8, q["contexto"])
-        pdf.multi_cell(0, 8, q["enunciado"])
-        for alt in q["alternativas"]:
-            pdf.multi_cell(0, 8, f"- {alt}")
-        pdf.multi_cell(0, 8, f"Resposta correta: {q['correta']}")
+        pdf.multi_cell(0, 8, str(q.get("contexto","")))
+        pdf.multi_cell(0, 8, str(q.get("enunciado","")))
+        for alt in q.get("alternativas", []):
+            pdf.multi_cell(0, 8, f"- {str(alt)}")
+        pdf.multi_cell(0, 8, f"Resposta correta: {str(q.get('correta',''))}")
         pdf.ln(5)
     buffer = BytesIO()
     pdf.output(buffer)
