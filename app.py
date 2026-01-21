@@ -1,5 +1,9 @@
 import streamlit as st
 import random
+from docx import Document
+from docx.shared import Pt
+from io import BytesIO
+import base64
 
 st.set_page_config(
     page_title="Gerador de Questões Educacionais",
