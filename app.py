@@ -9,9 +9,8 @@ from pptx import Presentation
 import re
 
 # --- Funções utilitárias ---
-
 def limpar_texto(texto):
-    """Remove caracteres inválidos e quebra de linhas desnecessárias."""
+    """Remove caracteres inválidos e espaços extras, mantendo frases completas."""
     if texto is None:
         return ""
     texto = re.sub(r'\s+', ' ', texto)  # substitui múltiplos espaços por 1
@@ -44,35 +43,37 @@ def extrair_texto_pptx(file):
                 texto += shape.text + " "
     return limpar_texto(texto)
 
-# --- Função para gerar questões ENEM coerentes ---
-def gerar_questao_enem(texto_base):
-    frases = [f.strip() for f in texto_base.split('.') if len(f.strip()) > 30]
-    if len(frases) == 0:
+# --- Função para gerar questões coerentes ---
+def gerar_questao(texto_base):
+    # Dividir em frases grandes (min 40 caracteres)
+    frases = [f.strip() for f in texto_base.split('.') if len(f.strip()) > 40]
+    if not frases:
         frases = ["Texto insuficiente para gerar questão."]
     
-    # Seleciona frase aleatória como contexto
     contexto = random.choice(frases)
-    
-    # Enunciado baseado em palavras-chave do contexto
+
+    # Enunciado baseado em trecho do contexto
     palavras = contexto.split()
     if len(palavras) > 5:
         chave = " ".join(random.sample(palavras, min(3, len(palavras))))
     else:
         chave = "interpretação do texto"
-    enunciado = f"Considerando o texto acima, assinale a alternativa que melhor se refere à {chave}."
+    enunciado = f"Com base no texto acima, assinale a alternativa que melhor se refere à {chave}."
 
     # Alternativas
-    correta = contexto[:60] + "..."  # pega uma parte do contexto como resposta correta
+    correta = contexto
     incorretas = []
-    for f in random.sample(frases, min(3, len(frases))):
-        if f != contexto:
-            incorretas.append(f[:60] + "...")
+    # pegar outras frases para alternativas incorretas
+    outras_frases = [f for f in frases if f != contexto]
+    random.shuffle(outras_frases)
+    for f in outras_frases[:3]:
+        incorretas.append(f)
     while len(incorretas) < 4:
         incorretas.append("Informação incorreta relacionada ao texto.")
     
     alternativas = [correta] + incorretas
     random.shuffle(alternativas)
-    
+
     return {
         "contexto": contexto,
         "enunciado": enunciado,
@@ -115,7 +116,7 @@ def gerar_pdf(questoes):
     return buffer
 
 # --- STREAMLIT INTERFACE ---
-st.title("Gerador de Questões ENEM – Versão Gratuita Melhorada")
+st.title("Gerador de Questões – Versão Gratuita Limpa")
 st.write("Cole o texto ou envie um arquivo PDF, Word ou PowerPoint para gerar questões automaticamente.")
 
 # Input de texto
@@ -141,7 +142,7 @@ if st.button("🧠 Gerar questões"):
     else:
         questoes_geradas = []
         for i in range(quantidade):
-            questao = gerar_questao_enem(texto)
+            questao = gerar_questao(texto)
             questoes_geradas.append(questao)
 
             st.subheader(f"📝 Questão {i+1}")
@@ -155,11 +156,11 @@ if st.button("🧠 Gerar questões"):
         # Exportar Word
         buffer_word = gerar_word(questoes_geradas)
         b64_word = base64.b64encode(buffer_word.read()).decode()
-        href_word = f'<a href="data:application/octet-stream;base64,{b64_word}" download="Prova_ENEM.docx">💾 Baixar Prova em Word</a>'
+        href_word = f'<a href="data:application/octet-stream;base64,{b64_word}" download="Prova.docx">💾 Baixar Prova em Word</a>'
         st.markdown(href_word, unsafe_allow_html=True)
 
         # Exportar PDF
         buffer_pdf = gerar_pdf(questoes_geradas)
         b64_pdf = base64.b64encode(buffer_pdf.read()).decode()
-        href_pdf = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="Prova_ENEM.pdf">💾 Baixar Prova em PDF</a>'
+        href_pdf = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="Prova.pdf">💾 Baixar Prova em PDF</a>'
         st.markdown(href_pdf, unsafe_allow_html=True)
