@@ -10,7 +10,7 @@ import re
 import unicodedata
 import base64
 
-# --- Funções de limpeza e normalização ---
+# --- Funções de normalização ---
 def remover_controle(texto):
     return "".join(ch for ch in texto if unicodedata.category(ch)[0] != "C")
 
@@ -65,40 +65,33 @@ def separar_sentencas(texto):
     partes = re.split(r'(?<=[.!?])\s+', texto)
     return [p.strip() for p in partes if len(p.strip()) >= 25]
 
-# --- Geração de alternativas “pegadinha” ---
+# --- Gerar alternativas “pegadinha” ---
 def gerar_alternativas_pegadinha(sentenca):
-    # Alternativa correta
     correta = sentenca
-    
-    # Pequenas variações para gerar alternativas incorretas
     incorretas = []
-    
-    # Alteração de verbos-chave (ex: "remove" -> "transporta")
-    if "remove" in sentenca.lower():
-        incorretas.append(sentenca.lower().replace("remove", "transporta").capitalize())
-    # Omissão de palavras-chave
-    if len(sentenca.split()) > 5:
-        palavras = sentenca.split()
+
+    # Alterações sutis: verbo ou termo-chave trocado
+    substituicoes = {"remove":"transporta","gás carbônico":"oxigênio","diástole":"sístole",
+                     "sístole":"diástole","contração":"relaxamento","tecidos":"órgãos"}
+    for k,v in substituicoes.items():
+        if k in sentenca.lower():
+            incorretas.append(sentenca.lower().replace(k,v).capitalize())
+
+    # Omissão de partes importantes
+    palavras = sentenca.split()
+    if len(palavras) > 5:
         omitida = " ".join(palavras[:-2])
         incorretas.append(omitida)
-    # Substituição de termos centrais
-    substituicoes = {"gás carbônico":"oxigênio","diástole":"sístole","relaxamento":"contração","tecidos":"órgãos"}
-    sub_text = sentenca
-    for k,v in substituicoes.items():
-        if k in sub_text:
-            sub_text = sub_text.replace(k,v)
-    if sub_text != sentenca:
-        incorretas.append(sub_text)
-    
-    # Completar 4 alternativas incorretas, se necessário
+
+    # Alternativa relacionada genérica se precisar completar 4 incorretas
     while len(incorretas) < 4:
         incorretas.append("Informação relacionada, mas incorreta.")
-    
+
     alternativas = [correta] + random.sample(incorretas,4)
     random.shuffle(alternativas)
     return alternativas
 
-# --- Geração de questão ---
+# --- Gerar questão ---
 def gerar_questao(texto):
     sentencas = separar_sentencas(texto)
     if not sentencas:
